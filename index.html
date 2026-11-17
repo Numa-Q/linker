@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Mes liens</title>
+<link rel="stylesheet" href="app.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<a class="skip" href="#h-list">Aller à la liste des liens</a>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>Mes liens</h1>
+      <p class="muted" id="total-count"></p>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="btn-add">Ajouter</button>
+      <button type="button" class="btn" id="btn-import">Importer</button>
+      <button type="button" class="btn" id="btn-export">Exporter</button>
+      <button type="button" class="btn btn-icon" id="btn-theme" aria-label="Changer de thème" title="Changer de thème"></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <section aria-label="Recherche et filtres" class="filters">
+    <div class="search">
+      <label class="sr-only" for="q">Rechercher un lien</label>
+      <input type="search" id="q" autocomplete="off" spellcheck="false" maxlength="200"
+             placeholder="Titre, adresse, tag, note…" aria-describedby="q-hint">
+      <span class="kbd" aria-hidden="true">/</span>
+    </div>
+    <p class="hint muted" id="q-hint">Touche / pour chercher. Entrée ouvre le premier résultat.</p>
+
+    <nav aria-label="Collections">
+      <ul class="chips" id="collections"></ul>
+    </nav>
+
+    <div class="tagbar" id="tagbar" role="group" aria-label="Filtrer par tag"></div>
+
+    <div class="sortline">
+      <div class="views" id="views" role="group" aria-label="Affichage">
+        <button type="button" class="chip" data-view="cards" aria-pressed="false">Cartes</button>
+        <button type="button" class="chip" data-view="lines" aria-pressed="true">Lignes</button>
+        <button type="button" class="chip" data-view="compact" aria-pressed="false">Compact</button>
+        <button type="button" class="chip" data-view="grouped" aria-pressed="false">Groupé</button>
+      </div>
+      <label for="sort" class="muted">Trier par</label>
+      <select id="sort">
+        <option value="title">Titre (A à Z)</option>
+        <option value="recent">Ajoutés récemment</option>
+        <option value="used">Les plus utilisés</option>
+      </select>
+      <button type="button" class="btn btn-quiet" id="btn-select" aria-pressed="false">Sélectionner</button>
+      <button type="button" class="btn btn-quiet" id="btn-colls">Gérer les collections</button>
+      <button type="button" class="btn btn-quiet" id="btn-undo" hidden></button>
+      <button type="button" class="btn btn-quiet" id="btn-rename" hidden>Renommer la collection</button>
+      <button type="button" class="btn btn-quiet" id="btn-fold" hidden>Tout replier</button>
+    </div>
+  </section>
+
+  <p class="sr-only" id="live" role="status" aria-live="polite"></p>
+
+  <section id="pinned-section" aria-labelledby="h-pinned" hidden>
+    <h2 class="eyebrow" id="h-pinned">Épinglés</h2>
+    <ul class="cards" id="pinned"></ul>
+  </section>
+
+  <section aria-labelledby="h-list">
+    <h2 class="eyebrow" id="h-list" tabindex="-1">Tous les liens</h2>
+    <ul class="rows" id="liste"></ul>
+    <div id="groups" hidden></div>
+    <div class="more" id="more" hidden>
+      <button type="button" class="btn" id="btn-more"></button>
+      <button type="button" class="btn btn-quiet" id="btn-all"></button>
+    </div>
+    <div class="empty" id="empty" hidden></div>
+  </section>
+</main>
+
+<div class="batchbar" id="batchbar" role="region" aria-label="Actions sur la sélection" hidden>
+  <p class="bb-count" id="bb-count" aria-live="polite"></p>
+  <div class="bb-actions">
+    <button type="button" class="btn" id="bb-all">Tout sélectionner</button>
+    <button type="button" class="btn" id="bb-move">Déplacer…</button>
+    <button type="button" class="btn" id="bb-tags">Tags…</button>
+    <button type="button" class="btn btn-danger" id="bb-del">Supprimer</button>
+    <button type="button" class="btn" id="bb-done">Terminer</button>
+  </div>
+</div>
+
+<footer class="foot">
+  <p class="muted">Vos liens restent sur cet appareil, dans ce navigateur. Aucune donnée n'est envoyée.</p>
+  <p class="muted"><span id="backup-info"></span></p>
+  <p class="muted" id="persist-line"><span id="persist-info"></span> <button type="button" class="linklike" id="btn-persist" hidden>Protéger mes données</button></p>
+  <p class="muted">Version <span id="app-version"></span> · <button type="button" class="linklike" id="btn-log">Journal</button> · <button type="button" class="linklike danger" id="btn-erase">Effacer toutes les données</button></p>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="dlg-link" aria-labelledby="dlg-link-title">
+  <form id="form-link" novalidate method="dialog">
+    <h2 id="dlg-link-title">Ajouter un lien</h2>
+    <div class="field">
+      <label for="f-url">Adresse</label>
+      <input type="text" id="f-url" inputmode="url" autocomplete="off" spellcheck="false" maxlength="2048"
+             placeholder="https://exemple.fr/page" aria-describedby="err-url" required>
+      <p class="err" id="err-url"></p>
+    </div>
+    <div class="field">
+      <label for="f-title">Titre <span class="muted">(facultatif)</span></label>
+      <input type="text" id="f-title" autocomplete="off" maxlength="200" placeholder="Nom lisible du lien">
+    </div>
+    <div class="field">
+      <label for="f-collection">Collection <span class="muted">(facultatif)</span></label>
+      <div class="combo">
+        <input type="text" id="f-collection" role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="lb-collection" aria-describedby="hint-collection" autocomplete="off" maxlength="60" placeholder="Outils">
+        <ul class="listbox" id="lb-collection" role="listbox" aria-label="Collections existantes" hidden></ul>
+      </div>
+      <p class="hint-line" id="hint-collection" aria-live="polite"></p>
+    </div>
+    <div class="field">
+      <label for="f-tags">Tags <span class="muted">(séparés par des virgules)</span></label>
+      <input type="text" id="f-tags" autocomplete="off" placeholder="support, réseau">
+    </div>
+    <div class="field">
+      <label for="f-note">Note <span class="muted">(facultatif)</span></label>
+      <textarea id="f-note" rows="3" maxlength="1000"></textarea>
+    </div>
+    <div class="check">
+      <input type="checkbox" id="f-pinned">
+      <label for="f-pinned">Épingler en haut de la page</label>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-primary">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-import" aria-labelledby="dlg-import-title">
+  <form id="form-import" novalidate method="dialog">
+    <h2 id="dlg-import-title">Importer des liens</h2>
+    <p class="muted">Favoris du navigateur (.html), raccourcis du bureau (.url, .webloc), sauvegarde (.json) ou liste d'adresses collée.</p>
+    <div class="drop" id="drop">
+      <label for="f-files" class="btn">Choisir des fichiers</label>
+      <input type="file" id="f-files" class="sr-only" multiple accept=".html,.htm,.url,.webloc,.json">
+      <p class="muted" id="files-info">ou glissez-les ici</p>
+    </div>
+    <div class="field">
+      <label for="f-paste">Adresses collées <span class="muted">(une par ligne)</span></label>
+      <textarea id="f-paste" rows="4" spellcheck="false" placeholder="https://exemple.fr/a&#10;https://exemple.fr/b"></textarea>
+    </div>
+    <div class="field">
+      <label for="f-default-coll">Collection des liens sans dossier <span class="muted">(par défaut : À trier)</span></label>
+      <div class="combo">
+        <input type="text" id="f-default-coll" role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="lb-default-coll" aria-describedby="hint-default-coll" autocomplete="off" maxlength="60">
+        <ul class="listbox" id="lb-default-coll" role="listbox" aria-label="Collections existantes" hidden></ul>
+      </div>
+      <p class="hint-line" id="hint-default-coll" aria-live="polite"></p>
+    </div>
+    <p class="result" id="import-result" role="status"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Fermer</button>
+      <button type="submit" class="btn btn-primary">Importer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-confirm" aria-labelledby="dlg-confirm-title">
+  <form method="dialog" id="form-confirm">
+    <h2 id="dlg-confirm-title">Supprimer ce lien ?</h2>
+    <p id="confirm-text"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-danger">Supprimer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-rename" aria-labelledby="dlg-rename-title">
+  <form id="form-rename" novalidate method="dialog">
+    <h2 id="dlg-rename-title">Renommer la collection</h2>
+    <div class="field">
+      <label for="f-rename">Nouveau nom</label>
+      <input type="text" id="f-rename" autocomplete="off" maxlength="60">
+      <p class="muted">Un nom déjà utilisé fusionne les deux collections. Un nom vide retire les liens de toute collection.</p>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-primary">Renommer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-log" aria-labelledby="dlg-log-title">
+  <h2 id="dlg-log-title">Journal de l'application</h2>
+  <p class="muted">Événements techniques sans adresses ni titres. Utile pour investiguer un incident.</p>
+  <ul class="logs" id="log-list"></ul>
+  <div class="dlg-actions">
+    <button type="button" class="btn" id="btn-log-clear">Vider le journal</button>
+    <button type="button" class="btn" data-close>Fermer</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-export" aria-labelledby="dlg-export-title">
+  <h2 id="dlg-export-title">Exporter mes liens</h2>
+  <div class="choice">
+    <button type="button" class="btn btn-primary" id="btn-export-json">Sauvegarde JSON</button>
+    <p class="muted">Complète : notes, tags, usage. Recommandée pour sauvegarder et restaurer ici ou sur un autre navigateur.</p>
+  </div>
+  <div class="choice">
+    <button type="button" class="btn" id="btn-export-html">Favoris HTML</button>
+    <p class="muted">Compatible avec l'import des navigateurs. Sans notes ni compteurs d'usage.</p>
+  </div>
+  <div class="dlg-actions"><button type="button" class="btn" data-close>Fermer</button></div>
+</dialog>
+
+<dialog id="dlg-move" aria-labelledby="dlg-move-title">
+  <form id="form-move" novalidate method="dialog">
+    <h2 id="dlg-move-title">Déplacer la sélection</h2>
+    <p class="muted" id="move-info"></p>
+    <div class="field">
+      <label for="f-move">Collection de destination <span class="muted">(vide : sans collection)</span></label>
+      <div class="combo">
+        <input type="text" id="f-move" role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="lb-move" aria-describedby="hint-move" autocomplete="off" maxlength="60">
+        <ul class="listbox" id="lb-move" role="listbox" aria-label="Collections existantes" hidden></ul>
+      </div>
+      <p class="hint-line" id="hint-move" aria-live="polite"></p>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-primary">Déplacer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-tags" aria-labelledby="dlg-tags-title">
+  <form id="form-tags" novalidate method="dialog">
+    <h2 id="dlg-tags-title">Modifier les tags de la sélection</h2>
+    <p class="muted" id="tags-info"></p>
+    <fieldset class="radios">
+      <legend>Action</legend>
+      <div class="check"><input type="radio" id="t-add" name="tmode" value="add" checked><label for="t-add">Ajouter ces tags</label></div>
+      <div class="check"><input type="radio" id="t-rem" name="tmode" value="remove"><label for="t-rem">Retirer ces tags</label></div>
+    </fieldset>
+    <div class="field">
+      <label for="f-btags">Tags <span class="muted">(séparés par des virgules)</span></label>
+      <input type="text" id="f-btags" autocomplete="off" aria-describedby="err-btags" placeholder="support, réseau">
+      <p class="err" id="err-btags"></p>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-primary">Appliquer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-colls" aria-labelledby="dlg-colls-title">
+  <h2 id="dlg-colls-title">Gérer les collections</h2>
+  <p class="muted">Renommer, fusionner dans une autre collection ou supprimer la collection (ses liens sont conservés). Le dernier changement peut être annulé.</p>
+  <ul class="colls" id="coll-list"></ul>
+  <p class="muted" id="coll-empty" hidden>Aucune collection pour l'instant.</p>
+  <div class="dlg-actions"><button type="button" class="btn" data-close>Fermer</button></div>
+</dialog>
+
+<dialog id="dlg-merge" aria-labelledby="dlg-merge-title">
+  <form id="form-merge" novalidate method="dialog">
+    <h2 id="dlg-merge-title">Fusionner une collection</h2>
+    <div class="field">
+      <label for="f-merge" id="merge-label">Fusionner dans</label>
+      <select id="f-merge"></select>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-primary">Fusionner</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-erase" aria-labelledby="dlg-erase-title">
+  <form id="form-erase" novalidate method="dialog">
+    <h2 id="dlg-erase-title">Effacer toutes les données</h2>
+    <p>Cette action supprime <strong>définitivement</strong> tous vos liens, le journal et vos préférences d'affichage sur cet appareil. Elle ne peut pas être annulée.</p>
+    <p class="muted" id="erase-backup"></p>
+    <p><button type="button" class="btn" id="btn-erase-export">Exporter une sauvegarde maintenant</button></p>
+    <div class="field">
+      <label for="f-erase-word">Pour confirmer, tapez SUPPRIMER en majuscules</label>
+      <input type="text" id="f-erase-word" autocomplete="off" spellcheck="false" aria-describedby="err-erase-word">
+      <p class="err" id="err-erase-word"></p>
+    </div>
+    <div class="check">
+      <input type="checkbox" id="f-erase-ok" aria-describedby="err-erase-ok">
+      <label for="f-erase-ok">Je comprends que cette action est irréversible</label>
+    </div>
+    <p class="err" id="err-erase-ok"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" class="btn btn-danger">Effacer définitivement</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
